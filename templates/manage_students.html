@@ -1,9 +1,29 @@
 {% extends "base.html" %}
 {% block topbar_right %}<a href="{{ url_for('assignment_detail', assignment_id=assignment['id']) }}">← Back to assignment</a>{% endblock %}
 {% block content %}
+{% if batches|length > 0 %}
+<div class="card">
+  <h2>Add from a saved batch</h2>
+  <p class="sub">Add every student in a saved batch to this assignment in one click. <a class="link" href="{{ url_for('manage_batches') }}">Manage batches →</a></p>
+  <form method="POST">
+    <label>Batch</label>
+    <select name="batch_id">
+      {% for b in batches %}
+      <option value="{{ b['id'] }}">{{ b["name"] }}</option>
+      {% endfor %}
+    </select>
+    <div style="display:flex; align-items:center; gap:8px; margin-bottom:16px;">
+      <input type="checkbox" id="send_email_batch" name="send_email" style="width:auto; margin:0;" {{ "checked" if smtp_configured else "" }} />
+      <label for="send_email_batch" style="margin:0;">Email login credentials automatically {% if not smtp_configured %}(SMTP not configured){% endif %}</label>
+    </div>
+    <button class="btn-primary" type="submit">Add this batch to the assignment</button>
+  </form>
+</div>
+{% endif %}
+
 <div class="card">
   <h1>Students — {{ assignment["topic"] }}</h1>
-  <p class="sub">Paste one student per line as <strong>Name, email@example.com</strong> (or just the email — the name will be guessed). A username and password is generated for each. Already-added students (matched by email or name) are skipped automatically.</p>
+  <p class="sub">Or paste one student per line as <strong>Name, email@example.com</strong> (or just the email — the name will be guessed). A username and password is generated for each. Already-added students (matched by email or name) are skipped automatically.</p>
   <form method="POST">
     <label>Students to add</label>
     <textarea name="names" rows="6" placeholder="Priya Sharma, priya@example.com&#10;Rahul Verma, rahul@example.com&#10;anjali.nair@example.com"></textarea>

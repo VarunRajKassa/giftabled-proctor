@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block topbar_right %}<a href="{{ url_for('manage_batches') }}">← All batches</a>{% endblock %}
+{% block content %}
+<div class="card">
+  <h1>{{ batch["name"] }}</h1>
+  <p class="sub">{{ members|length }} student(s) in this batch.</p>
+  <form method="POST">
+    <label>Add more students (one per line)</label>
+    <textarea name="names" rows="4" placeholder="Anjali Nair, anjali@example.com"></textarea>
+    <button class="btn-primary" type="submit">Add to batch</button>
+  </form>
+</div>
+
+<div class="card">
+  <h2>Students in this batch</h2>
+  {% if members|length == 0 %}
+    <p class="sub">No students yet.</p>
+  {% else %}
+  <table>
+    <tr><th>Name</th><th>Email</th></tr>
+    {% for m in members %}
+    <tr><td>{{ m["name"] }}</td><td>{{ m["email"] or "—" }}</td></tr>
+    {% endfor %}
+  </table>
+  {% endif %}
+</div>
+
+<div class="card">
+  <form method="POST" action="{{ url_for('delete_batch', batch_id=batch['id']) }}" onsubmit="return confirm('Delete this batch? This cannot be undone.');">
+    <button class="btn-ghost" type="submit" style="color:var(--danger); border-color:var(--danger);">Delete this batch</button>
+  </form>
+</div>
+{% endblock %}

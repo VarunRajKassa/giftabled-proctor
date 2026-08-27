@@ -120,6 +120,20 @@ def init_db():
             ts TEXT NOT NULL,
             FOREIGN KEY (student_id) REFERENCES students(id)
         );
+
+        CREATE TABLE IF NOT EXISTS batches (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            created_at TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS batch_members (
+            id TEXT PRIMARY KEY,
+            batch_id TEXT NOT NULL,
+            name TEXT NOT NULL,
+            email TEXT,
+            FOREIGN KEY (batch_id) REFERENCES batches(id)
+        );
         """
     )
     _ensure_column(db, "assignments", "difficulty", "TEXT NOT NULL DEFAULT 'medium'")
@@ -440,6 +454,104 @@ def assignment_detail(assignment_id):
     )
 
 
+def _add_students_to_assignment(db, assignment_id, topic, entries, send_email):
+    """Adds (name, email) entries to an assignment, skipping duplicates. Returns (new_credentials, skipped, email_results)."""
+    new_credentials, skipped, email_results = [], [], []
+    login_link = url_for("student_login", _external=True)
+
+    for name, email in entries:
+        existing = None
+        if email:
+            existing = db.execute(
+                "SELECT id FROM students WHERE assignment_id = ? AND email = ?", (assignment_id, email)
+            ).fetchone()
+        else:
+            existing = db.execute(
+                "SELECT id FROM students WHERE assignment_id = ? AND name = ? AND (email IS NULL OR email = '')",
+                (assignment_id, name),
+            ).fetchone()
+
+        if existing:
+            skipped.append(name)
+            continue
+
+        username, password = generate_credentials(db, name)
+        student_id = str(uuid.uuid4())
+        db.execute(
+            "INSERT INTO students (id, assignment_id, name, email, username, password_hash, password_plain) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (student_id, assignment_id, name, email or None, username, generate_password_hash(password), password),
+        )
+        new_credentials.append({"name": name, "email": email, "username": username, "password": password})
+
+        if send_email and email:
+            ok, err = send_credentials_email(email, name, username, password, login_link, topic)
+            email_results.append({"email": email, "sent": ok, "error": err})
+
+    db.commit()
+    return new_credentials, skipped, email_results
+
+
+@app.route("/admin/batches", methods=["GET", "POST"])
+@admin_required
+def manage_batches():
+    db = get_db()
+    error = None
+    if request.method == "POST":
+        name = request.form.get("batch_name", "").strip()
+        raw = request.form.get("names", "")
+        entries = _parse_student_lines(raw)
+        if not name or not entries:
+            error = "Enter a batch name and at least one student."
+        else:
+            batch_id = str(uuid.uuid4())[:8]
+            db.execute("INSERT INTO batches (id, name, created_at) VALUES (?, ?, ?)",
+                       (batch_id, name, datetime.utcnow().isoformat()))
+            for student_name, email in entries:
+                db.execute("INSERT INTO batch_members (id, batch_id, name, email) VALUES (?, ?, ?, ?)",
+                           (str(uuid.uuid4()), batch_id, student_name, email or None))
+            db.commit()
+            return redirect(url_for("view_batch", batch_id=batch_id))
+
+    batches = db.execute("SELECT * FROM batches ORDER BY created_at DESC").fetchall()
+    batch_list = []
+    for b in batches:
+        count = db.execute("SELECT COUNT(*) as c FROM batch_members WHERE batch_id = ?", (b["id"],)).fetchone()["c"]
+        batch_list.append({"id": b["id"], "name": b["name"], "created_at": b["created_at"], "member_count": count})
+
+    return render_template("manage_batches.html", batches=batch_list, error=error)
+
+
+@app.route("/admin/batches/<batch_id>", methods=["GET", "POST"])
+@admin_required
+def view_batch(batch_id):
+    db = get_db()
+    batch = db.execute("SELECT * FROM batches WHERE id = ?", (batch_id,)).fetchone()
+    if not batch:
+        return "Batch not found.", 404
+
+    if request.method == "POST":
+        raw = request.form.get("names", "")
+        entries = _parse_student_lines(raw)
+        for student_name, email in entries:
+            db.execute("INSERT INTO batch_members (id, batch_id, name, email) VALUES (?, ?, ?, ?)",
+                       (str(uuid.uuid4()), batch_id, student_name, email or None))
+        db.commit()
+
+    members = db.execute("SELECT * FROM batch_members WHERE batch_id = ? ORDER BY name", (batch_id,)).fetchall()
+    return render_template("view_batch.html", batch=batch, members=members)
+
+
+@app.route("/admin/batches/<batch_id>/delete", methods=["POST"])
+@admin_required
+def delete_batch(batch_id):
+    db = get_db()
+    db.execute("DELETE FROM batch_members WHERE batch_id = ?", (batch_id,))
+    db.execute("DELETE FROM batches WHERE id = ?", (batch_id,))
+    db.commit()
+    return redirect(url_for("manage_batches"))
+
+
 @app.route("/admin/assignment/<assignment_id>/students", methods=["GET", "POST"])
 @admin_required
 def manage_students(assignment_id):
@@ -448,56 +560,33 @@ def manage_students(assignment_id):
     if not assignment:
         return "Assignment not found.", 404
 
-    new_credentials = []
-    skipped = []
-    email_results = []
+    new_credentials, skipped, email_results = [], [], []
 
     if request.method == "POST":
-        raw = request.form.get("names", "")
         send_email = request.form.get("send_email") == "on"
-        entries = _parse_student_lines(raw)
-        login_link = url_for("student_login", _external=True)
+        batch_id = request.form.get("batch_id", "")
 
-        for name, email in entries:
-            existing = None
-            if email:
-                existing = db.execute(
-                    "SELECT id FROM students WHERE assignment_id = ? AND email = ?", (assignment_id, email)
-                ).fetchone()
-            else:
-                existing = db.execute(
-                    "SELECT id FROM students WHERE assignment_id = ? AND name = ? AND (email IS NULL OR email = '')",
-                    (assignment_id, name),
-                ).fetchone()
+        if batch_id:
+            members = db.execute("SELECT name, email FROM batch_members WHERE batch_id = ?", (batch_id,)).fetchall()
+            entries = [(m["name"], m["email"] or "") for m in members]
+        else:
+            raw = request.form.get("names", "")
+            entries = _parse_student_lines(raw)
 
-            if existing:
-                skipped.append(name)
-                continue
-
-            username, password = generate_credentials(db, name)
-            student_id = str(uuid.uuid4())
-            db.execute(
-                "INSERT INTO students (id, assignment_id, name, email, username, password_hash, password_plain) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?)",
-                (student_id, assignment_id, name, email or None, username, generate_password_hash(password), password),
-            )
-            new_credentials.append({"name": name, "email": email, "username": username, "password": password})
-
-            if send_email and email:
-                ok, err = send_credentials_email(email, name, username, password, login_link, assignment["topic"])
-                email_results.append({"email": email, "sent": ok, "error": err})
-
-        db.commit()
+        new_credentials, skipped, email_results = _add_students_to_assignment(
+            db, assignment_id, assignment["topic"], entries, send_email
+        )
 
     all_students = db.execute(
         "SELECT * FROM students WHERE assignment_id = ? ORDER BY name ASC", (assignment_id,)
     ).fetchall()
     smtp_configured = bool(SMTP_HOST and SMTP_USER and SMTP_PASSWORD)
+    batches = db.execute("SELECT * FROM batches ORDER BY name").fetchall()
 
     return render_template(
         "manage_students.html", assignment=assignment, students=all_students,
         new_credentials=new_credentials, skipped=skipped, email_results=email_results,
-        smtp_configured=smtp_configured,
+        smtp_configured=smtp_configured, batches=batches,
     )
 
 

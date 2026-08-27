@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block topbar_right %}<a href="{{ url_for('admin_dashboard') }}">← Dashboard</a>{% endblock %}
+{% block content %}
+<div class="card">
+  <h1>Saved batches</h1>
+  <p class="sub">Save a reusable group of students under a batch name (e.g. "VLSI Batch 2025"). You can add an entire batch to any assignment in one click, instead of re-pasting names each time.</p>
+  {% if error %}<div class="error">{{ error }}</div>{% endif %}
+  <form method="POST">
+    <label>Batch name</label>
+    <input type="text" name="batch_name" placeholder="e.g. VLSI Batch 2025" required />
+    <label>Students (one per line, as Name, email@example.com)</label>
+    <textarea name="names" rows="6" placeholder="Priya Sharma, priya@example.com&#10;Rahul Verma, rahul@example.com"></textarea>
+    <button class="btn-primary" type="submit">Create batch</button>
+  </form>
+</div>
+
+<div class="card">
+  <h2>Existing batches ({{ batches|length }})</h2>
+  {% if batches|length == 0 %}
+    <p class="sub">No batches yet — create one above.</p>
+  {% else %}
+  <table>
+    <tr><th>Name</th><th>Students</th><th>Created</th><th></th></tr>
+    {% for b in batches %}
+    <tr>
+      <td>{{ b["name"] }}</td>
+      <td>{{ b["member_count"] }}</td>
+      <td>{{ b["created_at"][:19] }}</td>
+      <td><a class="link" href="{{ url_for('view_batch', batch_id=b['id']) }}">View →</a></td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% endif %}
+</div>
+{% endblock %}
