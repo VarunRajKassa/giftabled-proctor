@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card" style="max-width:480px; margin:80px auto; text-align:center;">
+  <h1>Welcome</h1>
+  <p class="sub">GiftAbled's proctored assessment platform. Choose how you'd like to continue.</p>
+  <div style="display:flex; flex-direction:column; gap:14px; margin-top:24px;">
+    <a class="btn btn-primary" href="{{ url_for('student_login') }}" style="padding:16px; font-size:16px;">Student Login</a>
+    <a class="btn btn-ghost" href="{{ url_for('admin_login') }}" style="padding:16px; font-size:16px;">Admin Login</a>
+  </div>
+</div>
+{% endblock %}

@@ -615,6 +615,11 @@ def admin_recording(student_id):
 # ---------------------------------------------------------------------------
 # Student login + instructions + exam flow + report
 # ---------------------------------------------------------------------------
+@app.route("/")
+def home():
+    return render_template("home.html")
+
+
 @app.route("/login", methods=["GET", "POST"])
 def student_login():
     error = None
