@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card">
+  <h1>Your results — {{ assignment["topic"] }}</h1>
+  <p class="sub">Hi {{ student["name"] }}, here's how you did.</p>
+  {% if student["ended_reason"] %}
+    <p class="error">Your test was ended automatically: {{ student["ended_reason"] }}. Only the answers you'd given up to that point were scored.</p>
+  {% endif %}
+  {% if summary %}
+    <div style="background:#fffaf0; border:1px solid var(--brand); border-radius:8px; padding:16px;">
+      <p style="margin:0; font-size:20px; font-weight:700;">{{ summary["marks"] }} / {{ summary["total"] }} marks ({{ summary["percent"] }}%)</p>
+    </div>
+  {% endif %}
+</div>
+
+<div class="card">
+  <h2>Areas to focus on</h2>
+  <p class="sub" style="color:var(--ink); line-height:1.7;">{{ improvement_summary }}</p>
+</div>
+
+<div class="card">
+  <h2>Question-by-question breakdown</h2>
+  {% for r in responses %}
+    <div style="padding:12px 0; border-bottom:1px dashed var(--line);">
+      <span class="badge {{ r['qtype'] }}">{{ r["qtype"]|upper }}</span>
+      {% if r["score"] is not none %}
+        <span class="badge" style="color:{{ 'var(--accent)' if not r['is_low_score'] else 'var(--danger)' }};">{{ r["score"] }}%</span>
+      {% endif %}
+      <p style="margin:8px 0 4px;"><strong>{{ r["prompt"] }}</strong></p>
+      <p style="margin:0; color:var(--ink);">Your answer: {{ r["answer_text"] }}</p>
+      {% if r["correct_text"] %}
+        <p style="margin:4px 0 0; color:var(--text-dim); font-size:13px;">Correct answer: {{ r["correct_text"] }}</p>
+      {% endif %}
+      {% if r["feedback"] %}
+        <p style="margin:4px 0 0; color:var(--text-dim); font-size:13px;">Feedback: {{ r["feedback"] }}</p>
+      {% endif %}
+    </div>
+  {% endfor %}
+</div>
+{% endblock %}

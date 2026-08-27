@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>{% block title %}GiftAbled Assessment Platform{% endblock %}</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --paper:#fffdf7; --card:#ffffff; --line:#eadfb8;
+    --brand:#ffc629; --brand-dark:#e0aa00; --accent:#2e7d5b;
+    --warn:#c9740a; --danger:#c8372f; --text-dim:#6b6b6b;
+    --mono:'JetBrains Mono','Courier New',monospace;
+    --sans:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  }
+  *{box-sizing:border-box;}
+  body{ margin:0; background:var(--paper); color:var(--ink); font-family:var(--sans); min-height:100vh; }
+  .topbar{ display:flex; align-items:center; justify-content:space-between; padding:12px 24px;
+    border-bottom:2px solid var(--brand); background:#111111; }
+  .brand{ display:flex; align-items:center; gap:12px; }
+  .brand img{ height:40px; border-radius:6px; }
+  .brand-name{ font-weight:700; color:#fff; letter-spacing:0.01em; font-size:15px; }
+  .brand-sub{ color:var(--brand); font-size:11px; font-family:var(--mono); }
+  .topbar a{ color:#f0f0f0; text-decoration:none; font-size:13px; }
+  .wrap{ padding:32px 24px; max-width:1100px; margin:0 auto; }
+  .card{ background:var(--card); border:1px solid var(--line); border-radius:12px; padding:28px; margin-bottom:20px;
+    box-shadow:0 1px 3px rgba(0,0,0,0.04); }
+  h1{ font-size:26px; margin:0 0 8px; color:var(--ink); }
+  h2{ font-size:18px; margin:0 0 16px; color:var(--ink); }
+  p.sub{ color:var(--text-dim); margin:0 0 20px; line-height:1.5; }
+  label{ display:block; font-size:13px; color:var(--text-dim); margin-bottom:6px; font-weight:600; }
+  input[type=text], input[type=password], input[type=number], textarea, select{
+    width:100%; padding:12px 14px; border-radius:8px; border:1px solid var(--line);
+    background:#fffef9; color:var(--ink); font-size:15px; margin-bottom:16px;
+  }
+  button, .btn{ font-family:var(--sans); font-weight:700; font-size:14px; padding:11px 22px;
+    border-radius:8px; border:none; cursor:pointer; display:inline-block; text-decoration:none; }
+  .btn-primary{ background:var(--brand); color:#1a1a1a; }
+  .btn-primary:hover{ background:var(--brand-dark); }
+  .btn-ghost{ background:transparent; color:var(--ink); border:1px solid var(--line); }
+  .error{ color:var(--danger); font-size:14px; margin-bottom:14px; }
+  table{ width:100%; border-collapse:collapse; }
+  td, th{ text-align:left; padding:10px; border-bottom:1px solid var(--line); font-size:14px; }
+  th{ color:var(--text-dim); font-weight:600; }
+  a.link{ color:var(--accent); font-weight:600; }
+  .badge{ font-family:var(--mono); font-size:11px; padding:3px 8px; border-radius:20px; border:1px solid var(--line); color:var(--text-dim); }
+  .badge.mcq{ color:#1c6fb0; border-color:#1c6fb0; } .badge.msq{ color:var(--warn); border-color:var(--warn); } .badge.code{ color:var(--accent); border-color:var(--accent); }
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div class="brand">
+    <img src="{{ url_for('static', filename='logo.webp') }}" alt="GiftAbled logo" />
+    <div><div class="brand-name">GiftAbled</div><div class="brand-sub">Assessment Platform</div></div>
+  </div>
+  <div>{% block topbar_right %}{% endblock %}</div>
+</div>
+<div class="wrap">
+  {% block content %}{% endblock %}
+</div>
+</body>
+</html>

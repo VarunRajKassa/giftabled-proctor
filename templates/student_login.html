@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card" style="max-width:420px; margin:60px auto;">
+  <h1>Student login</h1>
+  <p class="sub">Enter the username and password your instructor gave you.</p>
+  {% if error %}<div class="error">{{ error }}</div>{% endif %}
+  <form method="POST">
+    <label>Username</label>
+    <input type="text" name="username" required />
+    <label>Password</label>
+    <input type="password" name="password" required />
+    <button class="btn-primary" type="submit">Log in</button>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block topbar_right %}<a href="{{ url_for('admin_dashboard') }}">← Dashboard</a>{% endblock %}
+{% block content %}
+<div class="card">
+  <h1>{{ assignment["topic"] }}</h1>
+  <p class="sub">
+    Difficulty: <strong>{{ assignment["difficulty"]|capitalize }}</strong> —
+    Students log in at <strong>{{ login_link }}</strong> using credentials you generate below.
+  </p>
+  <a class="btn btn-primary" href="{{ url_for('manage_students', assignment_id=assignment['id']) }}">Manage students & credentials</a>
+  <a class="btn btn-ghost" href="{{ url_for('export_results_xlsx', assignment_id=assignment['id']) }}">Download results (Excel)</a>
+</div>
+
+<div class="card">
+  <h2>Generated questions ({{ questions|length }})</h2>
+  {% for q in questions %}
+    <div style="padding:12px 0; border-bottom:1px dashed var(--line);">
+      <span class="badge {{ q['qtype'] }}">{{ q["qtype"]|upper }}</span>
+      <p style="margin:8px 0 0;">{{ q["prompt"] }}</p>
+      {% if q["options_json"] %}
+        <ul style="color:var(--text-dim); font-size:14px;">
+        {% for opt in q["options_json"]|from_json %}
+          <li>{{ opt }}</li>
+        {% endfor %}
+        </ul>
+      {% endif %}
+    </div>
+  {% endfor %}
+</div>
+
+<div class="card">
+  <h2>Students ({{ students|length }})</h2>
+  {% if students|length == 0 %}
+    <p class="sub">No students added yet — use "Manage students & credentials" above to add some.</p>
+  {% else %}
+  <table>
+    <tr><th>Name</th><th>Username</th><th>Submitted</th><th>Marks</th><th>Recording</th><th></th></tr>
+    {% for s in students %}
+    <tr>
+      <td>{{ s["name"] }}</td>
+      <td>{{ s["username"] or "—" }}</td>
+      <td>
+        {{ s["submitted_at"][:19] if s["submitted_at"] else "Not yet" }}
+        {% if s["ended_reason"] %}<br/><span style="color:var(--danger); font-size:12px;">Auto-ended: {{ s["ended_reason"] }}</span>{% endif %}
+      </td>
+      <td>{{ (s["score_summary"]["marks"] ~ "/" ~ s["score_summary"]["total"] ~ " (" ~ s["score_summary"]["percent"] ~ "%)") if s["score_summary"] else "—" }}</td>
+      <td>{{ "🎥 saved" if s["has_recording"] else "—" }}</td>
+      <td><a class="link" href="{{ url_for('student_detail', student_id=s['id']) }}">View →</a></td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% endif %}
+</div>
+{% endblock %}

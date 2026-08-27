@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block topbar_right %}<a href="{{ url_for('assignment_detail', assignment_id=assignment['id']) }}">← Back to assignment</a>{% endblock %}
+{% block content %}
+<div class="card">
+  <h1>Students — {{ assignment["topic"] }}</h1>
+  <p class="sub">Paste one student per line as <strong>Name, email@example.com</strong> (or just the email — the name will be guessed). A username and password is generated for each. Already-added students (matched by email or name) are skipped automatically.</p>
+  <form method="POST">
+    <label>Students to add</label>
+    <textarea name="names" rows="6" placeholder="Priya Sharma, priya@example.com&#10;Rahul Verma, rahul@example.com&#10;anjali.nair@example.com"></textarea>
+    <div style="display:flex; align-items:center; gap:8px; margin-bottom:16px;">
+      <input type="checkbox" id="send_email" name="send_email" style="width:auto; margin:0;" {{ "checked" if smtp_configured else "" }} />
+      <label for="send_email" style="margin:0;">Email login credentials automatically {% if not smtp_configured %}(SMTP not configured — see README){% endif %}</label>
+    </div>
+    <button class="btn-primary" type="submit">Generate credentials</button>
+  </form>
+</div>
+
+{% if skipped %}
+<div class="card">
+  <p class="sub" style="margin:0;">Skipped (already added to this assignment): {{ skipped|join(", ") }}</p>
+</div>
+{% endif %}
+
+{% if email_results %}
+<div class="card">
+  <h2>Email delivery</h2>
+  <table>
+    <tr><th>Email</th><th>Status</th></tr>
+    {% for r in email_results %}
+    <tr><td>{{ r["email"] }}</td><td>{{ "Sent ✅" if r["sent"] else "Failed — " ~ r["error"] }}</td></tr>
+    {% endfor %}
+  </table>
+</div>
+{% endif %}
+
+{% if new_credentials %}
+<div class="card">
+  <h2>New credentials generated</h2>
+  <table>
+    <tr><th>Name</th><th>Email</th><th>Username</th><th>Password</th></tr>
+    {% for c in new_credentials %}
+    <tr><td>{{ c["name"] }}</td><td>{{ c["email"] or "—" }}</td><td>{{ c["username"] }}</td><td>{{ c["password"] }}</td></tr>
+    {% endfor %}
+  </table>
+</div>
+{% endif %}
+
+<div class="card">
+  <h2>All students on this assignment ({{ students|length }})</h2>
+  {% if students|length == 0 %}
+    <p class="sub">No students added yet.</p>
+  {% else %}
+  <table>
+    <tr><th>Name</th><th>Email</th><th>Username</th><th>Password</th><th>Status</th></tr>
+    {% for s in students %}
+    <tr>
+      <td>{{ s["name"] }}</td>
+      <td>{{ s["email"] or "—" }}</td>
+      <td>{{ s["username"] }}</td>
+      <td>{{ s["password_plain"] }}</td>
+      <td>{{ "Submitted" if s["submitted_at"] else ("Started" if s["started_at"] else "Not started") }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  <a class="btn btn-ghost" style="margin-top:16px;" href="{{ url_for('export_credentials_xlsx', assignment_id=assignment['id']) }}">Download all credentials (Excel)</a>
+  {% endif %}
+</div>
+{% endblock %}

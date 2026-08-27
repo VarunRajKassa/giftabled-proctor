@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block topbar_right %}<a href="{{ url_for('admin_dashboard') }}">← Dashboard</a>{% endblock %}
+{% block content %}
+<div class="card">
+  <h1>{{ student["name"] }}</h1>
+  <p class="sub">
+    Started {{ student["started_at"][:19] if student["started_at"] else "—" }} —
+    {{ "Submitted " + student["submitted_at"][:19] if student["submitted_at"] else "Not submitted yet" }}
+    {% if summary %} — Marks: <strong style="color:var(--accent);">{{ summary["marks"] }}/{{ summary["total"] }} ({{ summary["percent"] }}%)</strong>{% endif %}
+  </p>
+  {% if student["ended_reason"] %}
+    <p class="error">This test was auto-ended: {{ student["ended_reason"] }}</p>
+  {% endif %}
+</div>
+
+{% if student["recording_path"] %}
+<div class="card">
+  <h2>Webcam recording</h2>
+  <video controls style="width:100%; max-width:480px; border-radius:8px; background:#000;"
+         src="{{ url_for('admin_recording', student_id=student['id']) }}"></video>
+</div>
+{% endif %}
+
+<div class="card">
+  <h2>Answers</h2>
+  {% for r in responses %}
+    <div style="padding:12px 0; border-bottom:1px dashed var(--line);">
+      <span class="badge {{ r['qtype'] }}">{{ r["qtype"]|upper }}</span>
+      {% if r["score"] is not none %}
+        <span class="badge" style="color:var(--accent);">{{ r["score"] }}%</span>
+      {% else %}
+        <span class="badge" style="color:var(--text-dim);">not graded</span>
+      {% endif %}
+      <p style="margin:8px 0 4px;"><strong>{{ r["prompt"] }}</strong></p>
+      <p style="margin:0; color:var(--accent);">Answer: {{ r["answer_text"] }}</p>
+      {% if r["correct_text"] %}
+        <p style="margin:4px 0 0; color:var(--text-dim); font-size:13px;">Correct answer: {{ r["correct_text"] }}</p>
+      {% endif %}
+      {% if r["feedback"] %}
+        <p style="margin:4px 0 0; color:var(--text-dim); font-size:13px;">Feedback: {{ r["feedback"] }}</p>
+      {% endif %}
+    </div>
+  {% endfor %}
+</div>
+
+<div class="card">
+  <h2>Proctoring log ({{ logs|length }} events)</h2>
+  <table>
+    <tr><th>Time</th><th>Event</th><th>Message</th></tr>
+    {% for l in logs %}
+    <tr>
+      <td>{{ l["ts"][11:19] }}</td>
+      <td>{{ l["event_type"] }}</td>
+      <td>{{ l["message"] }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+{% endblock %}

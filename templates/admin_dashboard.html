@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block topbar_right %}<a href="{{ url_for('admin_logout') }}">Log out</a>{% endblock %}
+{% block content %}
+<div class="card">
+  <h1>Assignments</h1>
+  <p class="sub">Create a new AI-generated assignment or open an existing one to view results.</p>
+  <a class="btn btn-primary" href="{{ url_for('create_assignment') }}">+ New assignment</a>
+</div>
+
+<div class="card">
+  <h2>All assignments</h2>
+  {% if assignments|length == 0 %}
+    <p class="sub">No assignments yet — create one above.</p>
+  {% else %}
+  <table>
+    <tr><th>Topic</th><th>Created</th><th></th></tr>
+    {% for a in assignments %}
+    <tr>
+      <td>{{ a["topic"] }}</td>
+      <td>{{ a["created_at"][:19] }}</td>
+      <td><a class="link" href="{{ url_for('assignment_detail', assignment_id=a['id']) }}">View →</a></td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,4 @@
+proctor.db
+recordings/*.webm
+__pycache__/
+*.pyc

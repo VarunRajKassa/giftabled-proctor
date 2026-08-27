@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card" style="max-width:560px; margin:40px auto;">
+  <h1>{{ assignment["topic"] }}</h1>
+  <p class="sub">Hi {{ student["name"] }} — please read the instructions carefully before you begin.</p>
+
+  <div style="background:#fffaf0; border:1px solid var(--brand); border-radius:8px; padding:16px; margin-bottom:20px;">
+    <p style="margin:0 0 8px; font-weight:700;">This assignment contains:</p>
+    <ul style="margin:0; padding-left:20px; color:var(--ink);">
+      <li>{{ count_map.get("mcq", 0) }} Multiple Choice (MCQ) question(s)</li>
+      <li>{{ count_map.get("msq", 0) }} Multiple Select (MSQ) question(s)</li>
+      <li>{{ count_map.get("code", 0) }} Coding question(s)</li>
+    </ul>
+    <p style="margin:10px 0 0;">Difficulty: <strong>{{ difficulty_label }}</strong> &nbsp;•&nbsp; Time limit: <strong>{{ assignment["duration_minutes"] }} minutes</strong></p>
+  </div>
+
+  <p class="sub" style="font-weight:700; color:var(--ink);">Rules during the test:</p>
+  <ul style="color:var(--text-dim); line-height:1.7;">
+    <li>Your webcam and microphone will be turned on and recorded for the full session.</li>
+    <li>The test ends automatically and submits whatever you've answered so far if: another person appears on camera, you switch away from this tab, you try to copy/paste, or unexpected talking/noise is picked up by the microphone.</li>
+    <li>Right-click is disabled in the answer area.</li>
+    <li>The order of questions and answer options is unique to you.</li>
+    <li>The test auto-submits when the time limit runs out.</li>
+    <li>Once you submit, you cannot log back in to change your answers — but you'll see your results and feedback right after.</li>
+  </ul>
+
+  <div style="display:flex; align-items:flex-start; gap:10px; margin:20px 0;">
+    <input type="checkbox" id="ackCheck" style="width:auto; margin-top:4px;" onchange="document.getElementById('startBtn').disabled = !this.checked;" />
+    <label for="ackCheck" style="margin:0; font-weight:600; color:var(--ink);">I have read and understood the instructions above.</label>
+  </div>
+
+  <a id="startBtn" class="btn btn-primary" href="{{ url_for('exam_session', student_id=student['id']) }}"
+     style="opacity:0.4; pointer-events:none;"
+     onclick="return !this.hasAttribute('disabled') === false">Start the test</a>
+</div>
+<script>
+  // Enable/disable the start link based on the checkbox using a real disabled-like state
+  const box = document.getElementById('ackCheck');
+  const btn = document.getElementById('startBtn');
+  box.addEventListener('change', () => {
+    if(box.checked){
+      btn.style.opacity = '1';
+      btn.style.pointerEvents = 'auto';
+    } else {
+      btn.style.opacity = '0.4';
+      btn.style.pointerEvents = 'none';
+    }
+  });
+</script>
+{% endblock %}

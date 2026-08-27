@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Proctored Assignment</title>
+<script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+<style>
+  :root{
+    --ink:#1a1a1a; --paper:#fffdf7; --card:#ffffff; --line:#eadfb8;
+    --brand:#ffc629; --brand-dark:#e0aa00; --accent:#2e7d5b;
+    --warn:#c9740a; --danger:#c8372f; --text-dim:#6b6b6b;
+    --mono:'JetBrains Mono','Courier New',monospace;
+    --sans:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  }
+  *{box-sizing:border-box;}
+  body{ margin:0; background:var(--paper); color:var(--ink); font-family:var(--sans); min-height:100vh; }
+  .topbar{ display:flex; align-items:center; justify-content:space-between; padding:12px 24px;
+    border-bottom:2px solid var(--brand); background:#111111; }
+  .brand{ display:flex; align-items:center; gap:12px; }
+  .brand img{ height:36px; border-radius:6px; }
+  .brand-name{ font-weight:700; color:#fff; font-size:14px; }
+  .status-pill{ font-family:var(--mono); font-size:12px; padding:4px 10px; border-radius:20px; border:1px solid var(--brand); color:var(--brand); }
+  .status-pill.live{ color:#3ddc97; border-color:#3ddc97; }
+  .status-pill.alert{ color:#ff6b6b; border-color:#ff6b6b; }
+  .wrap{ padding:24px; max-width:1100px; margin:0 auto; }
+  .exam-grid{ display:grid; grid-template-columns: 1.6fr 1fr; gap:20px; }
+  @media (max-width: 800px){ .exam-grid{ grid-template-columns: 1fr; } }
+  .card{ background:var(--card); border:1px solid var(--line); border-radius:12px; padding:24px; margin-bottom:16px;
+    box-shadow:0 1px 3px rgba(0,0,0,0.04); }
+  .q-badge{ font-family:var(--mono); font-size:11px; padding:3px 8px; border-radius:20px; border:1px solid var(--line); }
+  .q-badge.mcq{ color:#1c6fb0; border-color:#1c6fb0; } .q-badge.msq{ color:var(--warn); border-color:var(--warn); } .q-badge.code{ color:var(--accent); border-color:var(--accent); }
+  .q-prompt{ margin:10px 0 14px; font-size:15px; }
+  .option-row{ display:flex; align-items:center; gap:10px; padding:8px 0; }
+  textarea{ width:100%; min-height:140px; background:#fffef9; color:var(--ink); border:1px solid var(--line);
+    border-radius:8px; padding:12px; font-family:var(--mono); font-size:13px; }
+  video{ width:100%; border-radius:8px; background:#000; display:block; }
+  .cam-wrap{ position:relative; }
+  .cam-badge{ position:absolute; top:8px; left:8px; background:rgba(0,0,0,0.6); color:#fff; padding:3px 8px; border-radius:6px; font-family:var(--mono); font-size:11px; }
+  .mic-badge{ position:absolute; top:8px; right:8px; background:rgba(0,0,0,0.6); color:#fff; padding:3px 8px; border-radius:6px; font-family:var(--mono); font-size:11px; }
+  .log{ margin-top:14px; max-height:220px; overflow-y:auto; font-family:var(--mono); font-size:12px; }
+  .log-row{ padding:6px 8px; border-radius:6px; margin-bottom:4px; display:flex; justify-content:space-between; gap:8px; }
+  .log-row.info{ background:rgba(46,125,91,0.08); color:var(--accent); }
+  .log-row.warn{ background:rgba(201,116,10,0.1); color:var(--warn); }
+  .log-row.danger{ background:rgba(200,55,47,0.1); color:var(--danger); }
+  button{ font-family:var(--sans); font-weight:700; font-size:14px; padding:12px 22px; border-radius:8px; border:none; cursor:pointer; }
+  .btn-primary{ background:var(--brand); color:#1a1a1a; }
+  .timer{ font-family:var(--mono); font-size:14px; color:var(--text-dim); }
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div class="brand">
+    <img src="{{ url_for('static', filename='logo.webp') }}" alt="GiftAbled logo" />
+    <div class="brand-name">Proctored session — {{ student["name"] }}</div>
+  </div>
+  <div id="statusPill" class="status-pill">initializing…</div>
+</div>
+
+<div class="wrap">
+  <div class="exam-grid">
+    <div>
+      <div class="card">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <h2 style="margin:0;">Questions</h2>
+          <span class="timer" id="timer">00:00</span>
+        </div>
+      </div>
+      <div id="questionList"></div>
+      <div class="card">
+        <button class="btn-primary" id="submitBtn">Submit assignment</button>
+      </div>
+    </div>
+    <div class="card" style="height:fit-content;">
+      <h2>Session monitor</h2>
+      <div class="cam-wrap">
+        <video id="video" autoplay muted playsinline></video>
+        <div class="cam-badge" id="faceBadge">initializing…</div>
+        <div class="mic-badge" id="micBadge">mic: initializing…</div>
+      </div>
+      <div class="log" id="logPanel"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const STUDENT_ID = "{{ student['id'] }}";
+const QUESTIONS = {{ questions_json | safe }};
+const DURATION_SECONDS = {{ duration_minutes }} * 60;
+const MODEL_URL = 'https://justadudewhohacks.github.io/face-api.js/models';
+
+let stream = null, detectInterval = null, timerInterval = null, audioCheckInterval = null;
+let secondsRemaining = DURATION_SECONDS, modelsReady = false, testEnded = false;
+let mediaRecorder = null, recordedChunks = [];
+let audioCtx = null, analyser = null, loudSampleCount = 0, multipleFaceStreak = 0;
+const answers = {};
+const el = id => document.getElementById(id);
+
+function startRecording(){
+  try{
+    const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp8,opus') ? 'video/webm;codecs=vp8,opus' : 'video/webm';
+    mediaRecorder = new MediaRecorder(stream, { mimeType });
+    mediaRecorder.ondataavailable = e => { if(e.data && e.data.size > 0) recordedChunks.push(e.data); };
+    mediaRecorder.start(1000);
+    logEvent('RECORDING_STARTED', 'Webcam recording started', 'info');
+  }catch(err){
+    logEvent('RECORDING_UNAVAILABLE', 'Webcam recording is not supported in this browser', 'warn');
+  }
+}
+
+function stopRecordingAndGetBlob(){
+  return new Promise(resolve => {
+    if(!mediaRecorder || mediaRecorder.state === 'inactive'){ resolve(null); return; }
+    mediaRecorder.onstop = () => resolve(new Blob(recordedChunks, { type: 'video/webm' }));
+    mediaRecorder.stop();
+  });
+}
+
+function setStatus(text, mode){
+  const pill = el('statusPill');
+  pill.textContent = text;
+  pill.className = 'status-pill' + (mode ? ' ' + mode : '');
+}
+
+function logEvent(type, message, level){
+  fetch('/api/log', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ student_id: STUDENT_ID, event_type: type, message, level: level||'info' })
+  }).catch(()=>{});
+  const row = document.createElement('div');
+  row.className = 'log-row ' + (level||'info');
+  row.innerHTML = `<span>${message}</span><span>${new Date().toLocaleTimeString()}</span>`;
+  const panel = el('logPanel');
+  if(panel) panel.prepend(row);
+}
+
+function renderQuestions(){
+  const container = el('questionList');
+  QUESTIONS.forEach((q, idx) => {
+    const card = document.createElement('div');
+    card.className = 'card';
+    let inner = `<span class="q-badge ${q.qtype}">${q.qtype.toUpperCase()}</span>
+                 <p class="q-prompt"><strong>Q${idx+1}.</strong> ${q.prompt}</p>`;
+
+    if(q.qtype === 'mcq'){
+      q.options.forEach((opt, i) => {
+        inner += `<div class="option-row">
+          <input type="radio" name="q_${q.id}" value="${i}" onchange="answers['${q.id}']=${i}">
+          <label>${opt}</label></div>`;
+      });
+    } else if(q.qtype === 'msq'){
+      q.options.forEach((opt, i) => {
+        inner += `<div class="option-row">
+          <input type="checkbox" onchange="toggleMsq('${q.id}', ${i}, this.checked)">
+          <label>${opt}</label></div>`;
+      });
+    } else {
+      inner += `<textarea placeholder="Write your code / answer here..." oninput="answers['${q.id}']=this.value"></textarea>`;
+    }
+    card.innerHTML = inner;
+    container.appendChild(card);
+  });
+}
+
+window.answers = answers;
+window.toggleMsq = function(qid, idx, checked){
+  if(!answers[qid]) answers[qid] = [];
+  if(checked){ if(!answers[qid].includes(idx)) answers[qid].push(idx); }
+  else{ answers[qid] = answers[qid].filter(i => i !== idx); }
+};
+
+async function initCamera(){
+  try{
+    stream = await navigator.mediaDevices.getUserMedia({ video:true, audio:true });
+    el('video').srcObject = stream;
+    el('micBadge').textContent = 'mic: on';
+    startRecording();
+    startAudioMonitoring();
+  }catch(err){
+    try{
+      stream = await navigator.mediaDevices.getUserMedia({ video:true, audio:false });
+      el('video').srcObject = stream;
+      el('micBadge').textContent = 'mic: unavailable';
+      logEvent('MIC_UNAVAILABLE', 'Microphone permission denied or unavailable — continuing with video only', 'warn');
+      startRecording();
+    }catch(err2){
+      setStatus('camera blocked', 'alert');
+      logEvent('CAMERA_DENIED', 'Camera permission was denied or unavailable', 'danger');
+      return;
+    }
+  }
+  setStatus('loading models…');
+  try{
+    await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
+    modelsReady = true;
+    setStatus('monitoring', 'live');
+    startFaceMonitoring();
+  }catch(err){
+    setStatus('face model unavailable', 'warn');
+    el('faceBadge').textContent = 'face check offline';
+    logEvent('MODEL_LOAD_FAILED', 'Face detection model could not load', 'warn');
+  }
+}
+
+function startAudioMonitoring(){
+  const audioTracks = stream.getAudioTracks();
+  if(!audioTracks || audioTracks.length === 0) return;
+  try{
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 2048;
+    const source = audioCtx.createMediaStreamSource(stream);
+    source.connect(analyser);
+    const dataArray = new Uint8Array(analyser.fftSize);
+
+    audioCheckInterval = setInterval(() => {
+      analyser.getByteTimeDomainData(dataArray);
+      let sumSquares = 0;
+      for(let i = 0; i < dataArray.length; i++){
+        const v = (dataArray[i] - 128) / 128;
+        sumSquares += v * v;
+      }
+      const rms = Math.sqrt(sumSquares / dataArray.length);
+      if(rms > 0.15){
+        loudSampleCount++;
+        if(loudSampleCount >= 3){
+          endTest('AUDIO_ANOMALY', 'Unexpected talking or background noise detected by the microphone');
+        }
+      } else {
+        loudSampleCount = 0;
+      }
+    }, 500);
+  }catch(err){
+    logEvent('AUDIO_MONITOR_UNAVAILABLE', 'Audio level monitoring could not start in this browser', 'warn');
+  }
+}
+
+function startFaceMonitoring(){
+  detectInterval = setInterval(async () => {
+    if(!modelsReady || testEnded) return;
+    const video = el('video');
+    if(video.readyState < 2) return;
+    const detections = await faceapi.detectAllFaces(video, new faceapi.TinyFaceDetectorOptions());
+    const count = detections.length;
+    const badge = el('faceBadge');
+    if(count === 0){
+      badge.textContent = 'no face detected';
+      logEvent('NO_FACE', 'No face detected in frame', 'danger');
+      setStatus('no face detected', 'alert');
+      multipleFaceStreak = 0;
+    } else if(count > 1){
+      badge.textContent = count + ' faces detected';
+      logEvent('MULTIPLE_FACES', `${count} faces detected in frame`, 'danger');
+      setStatus('multiple faces detected', 'alert');
+      multipleFaceStreak++;
+      if(multipleFaceStreak >= 2){
+        endTest('MULTIPLE_FACES', 'Another person appeared in the camera frame');
+      }
+    } else {
+      badge.textContent = '1 face — ok';
+      setStatus('monitoring', 'live');
+      multipleFaceStreak = 0;
+    }
+  }, 2000);
+}
+
+document.addEventListener('visibilitychange', () => {
+  if(document.hidden && !testEnded){
+    endTest('TAB_SWITCH', 'Switched away from the assignment tab');
+  }
+});
+window.addEventListener('blur', () => { if(!testEnded) logEvent('WINDOW_BLUR', 'Browser window lost focus', 'warn'); });
+document.addEventListener('copy', e => { e.preventDefault(); if(!testEnded) endTest('CLIPBOARD_BLOCKED', 'Copy attempt detected'); });
+document.addEventListener('paste', e => { e.preventDefault(); if(!testEnded) endTest('CLIPBOARD_BLOCKED', 'Paste attempt detected'); });
+document.addEventListener('cut', e => { e.preventDefault(); if(!testEnded) endTest('CLIPBOARD_BLOCKED', 'Cut attempt detected'); });
+document.addEventListener('contextmenu', e => { e.preventDefault(); logEvent('RIGHT_CLICK_BLOCKED', 'Right-click menu blocked', 'info'); });
+
+function startTimer(){
+  updateTimerDisplay();
+  timerInterval = setInterval(() => {
+    secondsRemaining--;
+    updateTimerDisplay();
+    if(secondsRemaining <= 0){
+      endTest('TIME_EXPIRED', 'Time limit reached');
+    }
+  }, 1000);
+}
+
+function updateTimerDisplay(){
+  const m = String(Math.floor(Math.max(0, secondsRemaining) / 60)).padStart(2, '0');
+  const s = String(Math.max(0, secondsRemaining) % 60).padStart(2, '0');
+  el('timer').textContent = `${m}:${s}`;
+}
+
+async function finalizeSubmission(terminationReason){
+  clearInterval(detectInterval);
+  clearInterval(timerInterval);
+  clearInterval(audioCheckInterval);
+  if(audioCtx) { try{ audioCtx.close(); }catch(e){} }
+
+  const blob = await stopRecordingAndGetBlob();
+  if(stream) stream.getTracks().forEach(t => t.stop());
+
+  if(blob && blob.size > 0){
+    try{
+      const formData = new FormData();
+      formData.append('student_id', STUDENT_ID);
+      formData.append('recording', blob, 'recording.webm');
+      await fetch('/api/upload_recording', { method:'POST', body: formData });
+    }catch(e){
+      logEvent('UPLOAD_FAILED', 'Recording upload failed', 'warn');
+    }
+  }
+
+  await fetch('/api/submit', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ student_id: STUDENT_ID, answers, termination_reason: terminationReason || null })
+  });
+
+  window.location.href = `/exam/report/${STUDENT_ID}`;
+}
+
+async function endTest(reasonCode, reasonMessage){
+  if(testEnded) return;
+  testEnded = true;
+  logEvent('AUTO_TERMINATED', `Test ended automatically: ${reasonMessage}`, 'danger');
+  el('submitBtn').disabled = true;
+  el('submitBtn').textContent = 'Test ended — submitting…';
+  await finalizeSubmission(reasonMessage);
+}
+
+el('submitBtn').addEventListener('click', async () => {
+  if(testEnded) return;
+  testEnded = true;
+  el('submitBtn').disabled = true;
+  el('submitBtn').textContent = 'Submitting…';
+  await finalizeSubmission(null);
+});
+
+renderQuestions();
+initCamera();
+startTimer();
+</script>
+</body>
+</html>
+

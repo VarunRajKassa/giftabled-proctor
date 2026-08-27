@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block topbar_right %}<a href="{{ url_for('admin_dashboard') }}">← Dashboard</a>{% endblock %}
+{% block content %}
+<div class="card" style="max-width:520px;">
+  <h1>New assignment</h1>
+  <p class="sub">Enter a topic — questions are generated automatically using AI.</p>
+  {% if error %}<div class="error">{{ error }}</div>{% endif %}
+  <form method="POST">
+    <label>Topic</label>
+    <input type="text" name="topic" placeholder="e.g. Agentic AI, Java Collections, SQL Joins" required />
+    <label>Number of MCQ questions</label>
+    <input type="number" name="num_mcq" value="3" min="0" max="15" />
+    <label>Number of MSQ questions</label>
+    <input type="number" name="num_msq" value="2" min="0" max="15" />
+    <label>Number of coding questions</label>
+    <input type="number" name="num_code" value="1" min="0" max="10" />
+    <label>Difficulty level</label>
+    <select name="difficulty">
+      <option value="easy">Easy</option>
+      <option value="medium" selected>Medium</option>
+      <option value="hard">Hard</option>
+    </select>
+    <label>Time limit (minutes)</label>
+    <input type="number" name="duration_minutes" value="30" min="5" max="180" />
+    <button class="btn-primary" type="submit">Generate assignment</button>
+  </form>
+</div>
+{% endblock %}
