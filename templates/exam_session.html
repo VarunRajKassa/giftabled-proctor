@@ -92,7 +92,7 @@ const MODEL_URL = 'https://justadudewhohacks.github.io/face-api.js/models';
 let stream = null, detectInterval = null, timerInterval = null, audioCheckInterval = null;
 let secondsRemaining = DURATION_SECONDS, modelsReady = false, testEnded = false;
 let mediaRecorder = null, recordedChunks = [];
-let audioCtx = null, analyser = null, loudSampleCount = 0, multipleFaceStreak = 0;
+let audioCtx = null, analyser = null, loudSampleCount = 0, multipleFaceStreak = 0, noFaceStreak = 0;
 const answers = {};
 const el = id => document.getElementById(id);
 
@@ -248,11 +248,16 @@ function startFaceMonitoring(){
       logEvent('NO_FACE', 'No face detected in frame', 'danger');
       setStatus('no face detected', 'alert');
       multipleFaceStreak = 0;
+      noFaceStreak++;
+      if(noFaceStreak >= 3){
+        endTest('NO_FACE', 'No face was visible in the camera for an extended period');
+      }
     } else if(count > 1){
       badge.textContent = count + ' faces detected';
       logEvent('MULTIPLE_FACES', `${count} faces detected in frame`, 'danger');
       setStatus('multiple faces detected', 'alert');
       multipleFaceStreak++;
+      noFaceStreak = 0;
       if(multipleFaceStreak >= 2){
         endTest('MULTIPLE_FACES', 'Another person appeared in the camera frame');
       }
@@ -260,6 +265,7 @@ function startFaceMonitoring(){
       badge.textContent = '1 face — ok';
       setStatus('monitoring', 'live');
       multipleFaceStreak = 0;
+      noFaceStreak = 0;
     }
   }, 2000);
 }
