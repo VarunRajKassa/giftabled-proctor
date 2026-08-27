@@ -25,16 +25,14 @@
   </ul>
 
   <div style="display:flex; align-items:flex-start; gap:10px; margin:20px 0;">
-    <input type="checkbox" id="ackCheck" style="width:auto; margin-top:4px;" onchange="document.getElementById('startBtn').disabled = !this.checked;" />
+    <input type="checkbox" id="ackCheck" style="width:auto; margin-top:4px;" />
     <label for="ackCheck" style="margin:0; font-weight:600; color:var(--ink);">I have read and understood the instructions above.</label>
   </div>
 
   <a id="startBtn" class="btn btn-primary" href="{{ url_for('exam_session', student_id=student['id']) }}"
-     style="opacity:0.4; pointer-events:none;"
-     onclick="return !this.hasAttribute('disabled') === false">Start the test</a>
+     style="opacity:0.4; pointer-events:none;">Start the test</a>
 </div>
 <script>
-  // Enable/disable the start link based on the checkbox using a real disabled-like state
   const box = document.getElementById('ackCheck');
   const btn = document.getElementById('startBtn');
   box.addEventListener('change', () => {
